@@ -1,9 +1,10 @@
-﻿const { app, BrowserWindow, ipcMain, shell, screen, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, screen, clipboard } = require('electron');
 const path = require('path');
 const { enhanceText } = require('./provider');
 const connectorHub = require('./connector-hub');
 const connectorRegistry = require('./connector-registry');
 const workflowBuilder = require('./workflow-builder');
+const secureStore = require('./secure-store');
 
 let assistantWindow;
 let settingsWindow;
@@ -101,8 +102,11 @@ app.whenReady().then(() => {
   ipcMain.handle('open-settings', createSettings);
   ipcMain.handle('open-url', async (_event, raw) => {
     try {
+      if (typeof raw !== 'string' || raw.length > 2048) throw new Error('Invalid or oversized URL.');
       const url = new URL(raw);
-      if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Only web URLs are allowed.');
+      const host = url.hostname.toLowerCase();
+      if (url.protocol !== 'https:' && !(url.protocol === 'http:' && (host === 'localhost' || host === '127.0.0.1'))) throw new Error('Only HTTPS URLs or local HTTP URLs are allowed.');
+      if (url.username || url.password) throw new Error('URLs with embedded credentials are blocked.');
       await shell.openExternal(url.toString());
       return { ok: true };
     } catch (error) { return { ok: false, error: error.message }; }
@@ -114,6 +118,9 @@ app.whenReady().then(() => {
   ipcMain.handle('connector-health', (_event, data) => connectorRegistry.health(data || {}));
   ipcMain.handle('connector-tools', (_event, data) => connectorRegistry.discoverTools(data?.connector || {}, data?.tools || []));
   ipcMain.handle('workflow-preview', (_event, data) => workflowBuilder.preview(data?.definition || '', data?.context || {}));
+  ipcMain.handle('secure-set', (_event, data) => secureStore.setSecret(data?.name, data?.value));
+  ipcMain.handle('secure-get', (_event, data) => secureStore.getSecret(data?.name));
+  ipcMain.handle('secure-delete', (_event, data) => secureStore.deleteSecret(data?.name));
   ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
   ipcMain.on('minimize-window', (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());
 });

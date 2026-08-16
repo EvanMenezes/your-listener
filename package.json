@@ -29,7 +29,8 @@
       "provider.js",
       "connector-hub.js",
       "connector-registry.js",
-      "workflow-builder.js"
+      "workflow-builder.js",
+      "secure-store.js"
     ],
     "win": {
       "target": [

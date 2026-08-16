@@ -1,4 +1,4 @@
-﻿const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('yourListener', {
   openSettings: () => ipcRenderer.invoke('open-settings'),
@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('yourListener', {
   connectorHealth: (payload) => ipcRenderer.invoke('connector-health', payload),
   connectorTools: (payload) => ipcRenderer.invoke('connector-tools', payload),
   workflowPreview: (payload) => ipcRenderer.invoke('workflow-preview', payload),
+  secureSet: (payload) => ipcRenderer.invoke('secure-set', payload),
+  secureGet: (payload) => ipcRenderer.invoke('secure-get', payload),
+  secureDelete: (payload) => ipcRenderer.invoke('secure-delete', payload),
   onCommandModeStart: (callback) => ipcRenderer.on('command-mode-start', callback),
   onCommandModeStop: (callback) => ipcRenderer.on('command-mode-stop', callback),
   closeWindow: () => ipcRenderer.send('close-window'),
