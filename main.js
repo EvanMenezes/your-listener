@@ -18,6 +18,9 @@ let commandMode = false;
 let activationTimer;
 let activationSequence = 0;
 let nativeSpeechProcess;
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+else app.on('second-instance', () => { try { assistantWindow?.show(); assistantWindow?.focus(); } catch {} });
 const nativeSpeechScript = [
   "$ErrorActionPreference = 'Stop'",
   "Add-Type -AssemblyName System.Speech",
