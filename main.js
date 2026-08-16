@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, screen, clipboard, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { enhanceText } = require('./provider');
 const connectorHub = require('./connector-hub');
 const connectorRegistry = require('./connector-registry');
@@ -13,6 +14,9 @@ let hook;
 let automation;
 let held = new Set();
 let commandMode = false;
+function runtimeLog(label, error) { try { const target = path.join(app.getPath('userData'), 'your-listener-runtime.log'); fs.appendFileSync(target, `[${new Date().toISOString()}] ${label}: ${error?.stack || error?.message || String(error)}\n`); } catch {} }
+process.on('uncaughtException', (error) => runtimeLog('uncaughtException', error));
+process.on('unhandledRejection', (error) => runtimeLog('unhandledRejection', error));
 
 function send(channel, payload) {
   if (assistantWindow && !assistantWindow.isDestroyed()) assistantWindow.webContents.send(channel, payload);
@@ -79,6 +83,8 @@ function createAssistant() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   assistantWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  assistantWindow.webContents.on('render-process-gone', (_event, details) => runtimeLog(`render-process-gone/${details.reason}`, details));
+  assistantWindow.webContents.on('crashed', () => runtimeLog('renderer-crashed', 'The assistant renderer crashed.'));
   assistantWindow.once('ready-to-show', () => assistantWindow.show());
   assistantWindow.on('closed', () => { assistantWindow = null; });
   startNativeActivation();
