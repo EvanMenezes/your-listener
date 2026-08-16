@@ -15,6 +15,8 @@ let hook;
 let automation;
 let held = new Set();
 let commandMode = false;
+let activationTimer;
+let activationSequence = 0;
 let nativeSpeechProcess;
 const nativeSpeechScript = [
   "$ErrorActionPreference = 'Stop'",
@@ -73,24 +75,20 @@ function startNativeActivation() {
     const { uIOhook, UiohookKey } = require('uiohook-napi');
     hook = { uIOhook, UiohookKey };
     const required = [UiohookKey.Ctrl, UiohookKey.Meta, UiohookKey.Alt];
-    uIOhook.on('keydown', ({ keycode }) => {
-      held.add(keycode);
-      if (!commandMode && required.every((key) => held.has(key))) {
-        commandMode = true;
-        send('command-mode-start');
-      }
-    });
-    uIOhook.on('keyup', ({ keycode }) => {
-      held.delete(keycode);
-      if (commandMode && !required.every((key) => held.has(key))) {
-        commandMode = false;
-        send('command-mode-stop');
-      }
-    });
+    const hasChord = () => required.every((key) => held.has(key));
+    const schedule = (active) => {
+      clearTimeout(activationTimer);
+      const sequence = ++activationSequence;
+      activationTimer = setTimeout(() => {
+        if (sequence !== activationSequence) return;
+        if (active && hasChord() && !commandMode) { commandMode = true; send('command-mode-start'); }
+        if (!active && commandMode && !hasChord()) { commandMode = false; send('command-mode-stop'); }
+      }, active ? 90 : 180);
+    };
+    uIOhook.on('keydown', ({ keycode }) => { held.add(keycode); if (hasChord()) schedule(true); });
+    uIOhook.on('keyup', ({ keycode }) => { held.delete(keycode); if (!hasChord()) schedule(false); });
     uIOhook.start();
-  } catch (error) {
-    console.warn('Native activation unavailable:', error.message);
-  }
+  } catch (error) { console.warn('Native activation unavailable:', error.message); }
 }
 
 async function insertText(text, pressEnter = false) {
