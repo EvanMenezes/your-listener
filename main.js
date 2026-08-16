@@ -24,7 +24,7 @@ const nativeSpeechScript = [
   "$recognizer = New-Object System.Speech.Recognition.SpeechRecognitionEngine",
   "$recognizer.SetInputToDefaultAudioDevice()",
   "$recognizer.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))",
-  "$recognizer.SpeechRecognized.Add({ param($sender, $event); if ($event.Result -and $event.Result.Text -and $event.Result.Confidence -ge 0.18) { Write-Output ('YL_RESULT:' + $event.Result.Text) } })",
+  "Register-ObjectEvent -InputObject $recognizer -EventName SpeechRecognized -Action { $result = $EventArgs.Result; if ($result -and $result.Text -and $result.Confidence -ge 0.18) { [Console]::WriteLine('YL_RESULT:' + $result.Text) } } | Out-Null",
   "Write-Output 'YL_READY'",
   "$recognizer.RecognizeAsync([System.Speech.Recognition.RecognizeMode]::Multiple)",
   "while ($true) { Start-Sleep -Seconds 1 }"
