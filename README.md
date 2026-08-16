@@ -14,7 +14,7 @@ Install Node.js 22 or newer, run `npm install`, then run `npm start`. To run the
 
 The assistant supports the global `Ctrl + Win + Alt` hold-to-dictate mode on Windows. It also attempts to start continuous speech recognition after the user grants microphone permission. In idle speech mode, it listens for the configured calling name or aliases; after the calling name is detected, the remainder is treated as a command. The orb remains a manual start/stop fallback if speech recognition is unavailable or permission is denied.
 
-When command mode is active, final speech is cleaned and inserted into the currently focused application through the native automation layer. The user can append “press enter” to request an Enter keystroke after insertion. Insertion failures are shown in the assistant window instead of being reported as success.
+When command mode is active, final speech is cleaned and inserted into the currently focused application through the native automation layer. The user can append “press enter” to request an Enter keystroke after insertion. Insertion failures are shown in the assistant window instead of being reported as success. If Chromium’s online Web Speech service returns a network or service-not-allowed error, the Windows build falls back to a native PowerShell `System.Speech` dictation process when that Windows component is available. The fallback keeps the assistant open and reports a clear error if the Windows speech component is unavailable.
 
 ## Personalization and secure settings
 

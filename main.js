@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, screen, clipboard, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const { enhanceText } = require('./provider');
 const connectorHub = require('./connector-hub');
 const connectorRegistry = require('./connector-registry');
@@ -14,6 +15,35 @@ let hook;
 let automation;
 let held = new Set();
 let commandMode = false;
+let nativeSpeechProcess;
+const nativeSpeechScript = [
+  "$ErrorActionPreference = 'Stop'",
+  "Add-Type -AssemblyName System.Speech",
+  "$recognizer = New-Object System.Speech.Recognition.SpeechRecognitionEngine",
+  "$recognizer.SetInputToDefaultAudioDevice()",
+  "$recognizer.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))",
+  "$recognizer.RecognizeCompleted.Add({ param($sender, $event); if ($event.Result -and $event.Result.Text) { Write-Output ('YL_RESULT:' + $event.Result.Text) } })",
+  "Write-Output 'YL_READY'",
+  "$recognizer.RecognizeAsync([System.Speech.Recognition.RecognizeMode]::Multiple)",
+  "while ($true) { Start-Sleep -Seconds 1 }"
+].join('; ');
+function startNativeSpeech() {
+  if (process.platform !== 'win32' || nativeSpeechProcess) return { ok: Boolean(nativeSpeechProcess), error: nativeSpeechProcess ? '' : 'Native Windows speech is only available in the Windows build.' };
+  try {
+    nativeSpeechProcess = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', nativeSpeechScript], { windowsHide: true });
+    nativeSpeechProcess.stdout.setEncoding('utf8');
+    nativeSpeechProcess.stdout.on('data', (chunk) => String(chunk).split(/\r?\n/).forEach((line) => {
+      if (line === 'YL_READY') send('native-speech-ready');
+      else if (line.startsWith('YL_RESULT:')) send('native-speech-result', line.slice(10).trim());
+    }));
+    nativeSpeechProcess.stderr.setEncoding('utf8');
+    nativeSpeechProcess.stderr.on('data', (chunk) => send('native-speech-error', String(chunk).trim()));
+    nativeSpeechProcess.on('error', (error) => { runtimeLog('native-speech-error', error); send('native-speech-error', error.message); nativeSpeechProcess = null; });
+    nativeSpeechProcess.on('close', (code) => { if (code) send('native-speech-error', `Native speech stopped with code ${code}.`); nativeSpeechProcess = null; });
+    return { ok: true };
+  } catch (error) { runtimeLog('native-speech-start-error', error); return { ok: false, error: error.message }; }
+}
+function stopNativeSpeech() { try { nativeSpeechProcess?.kill(); } catch {} nativeSpeechProcess = null; return { ok: true }; }
 function runtimeLog(label, error) { try { const target = path.join(app.getPath('userData'), 'your-listener-runtime.log'); fs.appendFileSync(target, `[${new Date().toISOString()}] ${label}: ${error?.stack || error?.message || String(error)}\n`); } catch {} }
 process.on('uncaughtException', (error) => runtimeLog('uncaughtException', error));
 process.on('unhandledRejection', (error) => runtimeLog('unhandledRejection', error));
@@ -137,11 +167,13 @@ app.whenReady().then(() => {
   ipcMain.handle('secure-get', (_event, data) => secureStore.getSecret(data?.name));
   ipcMain.handle('secure-delete', (_event, data) => secureStore.deleteSecret(data?.name));
   ipcMain.handle('refine-prompt', (_event, data) => promptQuality.refine(data?.input, data?.context || {}));
+  ipcMain.handle('native-speech-start', () => startNativeSpeech());
+  ipcMain.handle('native-speech-stop', () => stopNativeSpeech());
   ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
   ipcMain.on('minimize-window', (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());
 });
 
-app.on('will-quit', () => { try { hook?.uIOhook?.stop(); } catch {} });
+app.on('will-quit', () => { try { hook?.uIOhook?.stop(); } catch {} stopNativeSpeech(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
 
