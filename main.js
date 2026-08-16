@@ -74,7 +74,7 @@ function startNativeActivation() {
   try {
     const { uIOhook, UiohookKey } = require('uiohook-napi');
     hook = { uIOhook, UiohookKey };
-    const required = [UiohookKey.Ctrl, UiohookKey.Meta, UiohookKey.Alt];
+    const required = [UiohookKey.Ctrl, UiohookKey.A];
     const hasChord = () => required.every((key) => held.has(key));
     const schedule = (active) => {
       clearTimeout(activationTimer);
