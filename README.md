@@ -4,7 +4,7 @@ Your Listener Max is an original Windows voice workflow assistant with a floatin
 
 ## Download the launchable Windows build
 
-The current packaged release is available from the [Your Listener Max v0.3.0 release page](https://github.com/EvanMenezes/your-listener/releases/tag/v0.3.0). The portable executable can run without an installer. Windows may display an unsigned-app warning because this open-source build is not code-signed; verify the release checksum shown by GitHub before running it.
+The current packaged release is available from the [Your Listener Max v0.9.3 release page](https://github.com/EvanMenezes/your-listener/releases/tag/v0.9.3). The portable executable can run without an installer. Windows may display an unsigned-app warning because this open-source build is not code-signed; verify the release checksum shown by GitHub before running it.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ Install Node.js 22 or newer, run `npm install`, then run `npm start`. To run the
 
 ## Activation and dictation
 
-The assistant supports the global `Ctrl + Win + Alt` hold-to-dictate mode on Windows. It also attempts to start continuous speech recognition after the user grants microphone permission. In idle speech mode, it listens for the configured calling name or aliases; after the calling name is detected, the remainder is treated as a command. The orb remains a manual start/stop fallback if speech recognition is unavailable or permission is denied.
+The assistant supports the global `Ctrl + A` hold-to-dictate mode on Windows. It also attempts to start continuous speech recognition after the user grants microphone permission. In idle speech mode, it listens for the configured calling name or aliases; after the calling name is detected, the remainder is treated as a command. The orb remains a manual start/stop fallback if speech recognition is unavailable or permission is denied.
 
 When command mode is active, final speech is cleaned and inserted into the currently focused application through the native automation layer. The user can append “press enter” to request an Enter keystroke after insertion. Insertion failures are shown in the assistant window instead of being reported as success. If Chromium’s online Web Speech service returns a network or service-not-allowed error, the Windows build falls back to a native PowerShell `System.Speech` dictation process when that Windows component is available. The fallback keeps the assistant open and reports a clear error if the Windows speech component is unavailable.
 
