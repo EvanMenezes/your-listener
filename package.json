@@ -1,0 +1,43 @@
+{
+  "name": "your-listener-max",
+  "version": "0.2.0",
+  "description": "Your Listener Max Mode: an original Windows voice workflow assistant.",
+  "main": "main.js",
+  "author": "Your Listener",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "package": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6",
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "electron": "^37.10.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.yourlistener.max",
+    "productName": "Your Listener Max",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "README.md",
+      "provider.js",
+      "connector-hub.js",
+      "connector-registry.js",
+      "workflow-builder.js"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "signtoolOptions": {
+        "sign": null
+      }
+    }
+  }
+}

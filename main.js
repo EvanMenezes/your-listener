@@ -1,0 +1,126 @@
+﻿const { app, BrowserWindow, ipcMain, shell, screen, clipboard } = require('electron');
+const path = require('path');
+const { enhanceText } = require('./provider');
+const connectorHub = require('./connector-hub');
+const connectorRegistry = require('./connector-registry');
+const workflowBuilder = require('./workflow-builder');
+
+let assistantWindow;
+let settingsWindow;
+let hook;
+let automation;
+let held = new Set();
+let commandMode = false;
+
+function send(channel, payload) {
+  if (assistantWindow && !assistantWindow.isDestroyed()) assistantWindow.webContents.send(channel, payload);
+}
+
+function startNativeActivation() {
+  if (process.platform !== 'win32') return;
+  try {
+    const { uIOhook, UiohookKey } = require('uiohook-napi');
+    hook = { uIOhook, UiohookKey };
+    const required = [UiohookKey.Ctrl, UiohookKey.Meta, UiohookKey.Alt];
+    uIOhook.on('keydown', ({ keycode }) => {
+      held.add(keycode);
+      if (!commandMode && required.every((key) => held.has(key))) {
+        commandMode = true;
+        send('command-mode-start');
+      }
+    });
+    uIOhook.on('keyup', ({ keycode }) => {
+      held.delete(keycode);
+      if (commandMode && !required.every((key) => held.has(key))) {
+        commandMode = false;
+        send('command-mode-stop');
+      }
+    });
+    uIOhook.start();
+  } catch (error) {
+    console.warn('Native activation unavailable:', error.message);
+  }
+}
+
+async function insertText(text, pressEnter = false) {
+  if (process.platform !== 'win32') return { ok: false, error: 'Focused-app insertion is available in the Windows build.' };
+  try {
+    if (!automation) automation = require('@nut-tree-fork/nut-js');
+    const { keyboard, Key } = automation;
+    clipboard.writeText(String(text || ''));
+    await keyboard.pressKey(Key.LeftControl, Key.V);
+    await keyboard.releaseKey(Key.LeftControl, Key.V);
+    if (pressEnter) {
+      await keyboard.pressKey(Key.Enter);
+      await keyboard.releaseKey(Key.Enter);
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+function createAssistant() {
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  assistantWindow = new BrowserWindow({
+    width: 440,
+    height: 720,
+    x: Math.round((width - 440) / 2),
+    y: Math.round((height - 720) / 2),
+    minWidth: 380,
+    minHeight: 580,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    show: false,
+    backgroundColor: '#00000000',
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  assistantWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  assistantWindow.once('ready-to-show', () => assistantWindow.show());
+  assistantWindow.on('closed', () => { assistantWindow = null; });
+  startNativeActivation();
+}
+
+function createSettings() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow.focus();
+  settingsWindow = new BrowserWindow({
+    width: 560,
+    height: 760,
+    parent: assistantWindow,
+    frame: false,
+    backgroundColor: '#10131a',
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  settingsWindow.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
+  settingsWindow.on('closed', () => { settingsWindow = null; });
+}
+
+app.whenReady().then(() => {
+  createAssistant();
+  ipcMain.handle('open-settings', createSettings);
+  ipcMain.handle('open-url', async (_event, raw) => {
+    try {
+      const url = new URL(raw);
+      if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Only web URLs are allowed.');
+      await shell.openExternal(url.toString());
+      return { ok: true };
+    } catch (error) { return { ok: false, error: error.message }; }
+  });
+  ipcMain.handle('insert-text', (_event, data) => insertText(data?.text, Boolean(data?.pressEnter)));
+  ipcMain.handle('enhance-text', (_event, data) => enhanceText(data || {}));
+  ipcMain.handle('connector-route', (_event, data) => { const request=connectorHub.route(data?.text, data?.connectors || []); return { request, preview: connectorHub.preview(request), permission: connectorHub.canRun(request, data?.permissions || {}) }; });
+  ipcMain.handle('connector-templates', () => connectorRegistry.BUILTIN_TEMPLATES);
+  ipcMain.handle('connector-health', (_event, data) => connectorRegistry.health(data || {}));
+  ipcMain.handle('connector-tools', (_event, data) => connectorRegistry.discoverTools(data?.connector || {}, data?.tools || []));
+  ipcMain.handle('workflow-preview', (_event, data) => workflowBuilder.preview(data?.definition || '', data?.context || {}));
+  ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
+  ipcMain.on('minimize-window', (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());
+});
+
+app.on('will-quit', () => { try { hook?.uIOhook?.stop(); } catch {} });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+
+
+
