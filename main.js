@@ -49,12 +49,15 @@ async function startWindowsVoiceTyping() {
   try {
     if (!automation) automation = require('@nut-tree-fork/nut-js');
     const { keyboard, Key } = automation;
-    const winKey = Key.LeftWin || Key.Meta;
+    const winKey = Key.LeftWin || Key.LeftSuper || Key.LeftMeta;
     if (!winKey || !Key.H) throw new Error('Windows shortcut keys are unavailable in this build.');
+    assistantWindow?.hide();
+    await new Promise((resolve) => setTimeout(resolve, 250));
     await keyboard.pressKey(winKey, Key.H);
     await keyboard.releaseKey(winKey, Key.H);
+    setTimeout(() => { try { assistantWindow?.showInactive(); } catch {} }, 700);
     return { ok: true };
-  } catch (error) { runtimeLog('windows-voice-typing-error', error); return { ok: false, error: error.message }; }
+  } catch (error) { try { assistantWindow?.showInactive(); } catch {} runtimeLog('windows-voice-typing-error', error); return { ok: false, error: error.message }; }
 }
 function runtimeLog(label, error) { try { const target = path.join(app.getPath('userData'), 'your-listener-runtime.log'); fs.appendFileSync(target, `[${new Date().toISOString()}] ${label}: ${error?.stack || error?.message || String(error)}\n`); } catch {} }
 process.on('uncaughtException', (error) => runtimeLog('uncaughtException', error));
