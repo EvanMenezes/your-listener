@@ -50,6 +50,8 @@ function startNativeSpeech() {
   } catch (error) { runtimeLog('native-speech-start-error', error); return { ok: false, error: error.message }; }
 }
 function stopNativeSpeech() { try { nativeSpeechProcess?.kill(); } catch {} nativeSpeechProcess = null; return { ok: true }; }
+function whisperPaths() { const root = app.isPackaged ? path.join(process.resourcesPath, 'vendor', 'whisper') : path.join(__dirname, 'vendor', 'whisper'); return { cli: path.join(root, 'whisper-cli.exe'), model: path.join(root, 'ggml-tiny.en.bin') }; }
+function transcribeAudio(payload) { return new Promise((resolve) => { if (process.platform !== 'win32') return resolve({ ok: false, error: 'Local Whisper is available in the Windows build.' }); try { const encoded = String(payload?.wavBase64 || ''); if (!encoded || encoded.length > 24000000) return resolve({ ok: false, error: 'Audio buffer is empty or too large.' }); const paths = whisperPaths(); if (!fs.existsSync(paths.cli) || !fs.existsSync(paths.model)) return resolve({ ok: false, error: 'Local Whisper runtime or model is missing.' }); const wav = Buffer.from(encoded, 'base64'); if (wav.length < 44 || wav.slice(0, 4).toString() !== 'RIFF') return resolve({ ok: false, error: 'Audio buffer is not a WAV file.' }); const temp = path.join(app.getPath('temp'), `your-listener-${Date.now()}.wav`); fs.writeFileSync(temp, wav); const outputBase = temp.slice(0, -4); const child = spawn(paths.cli, ['-m', paths.model, '-f', temp, '-l', 'en', '-nt', '-otxt', '-of', outputBase, '--no-prints'], { windowsHide: true }); let stdout = ''; let stderr = ''; const timer = setTimeout(() => { try { child.kill(); } catch {} }, 30000); child.stdout.on('data', (chunk) => { stdout += String(chunk); }); child.stderr.on('data', (chunk) => { stderr += String(chunk); }); child.on('error', (error) => { clearTimeout(timer); try { fs.unlinkSync(temp); } catch {} resolve({ ok: false, error: error.message }); }); child.on('close', (code) => { clearTimeout(timer); let text = ''; try { text = fs.readFileSync(`${outputBase}.txt`, 'utf8').replace(/\s+/g, ' ').trim(); } catch {} try { fs.unlinkSync(temp); } catch {} try { fs.unlinkSync(`${outputBase}.txt`); } catch {} if (code !== 0 || !text) return resolve({ ok: false, error: stderr.trim() || 'Whisper did not detect speech.' }); runtimeLog('whisper-result', text); resolve({ ok: true, text }); }); } catch (error) { resolve({ ok: false, error: error.message }); } }); }
 async function startWindowsVoiceTyping() {
   if (process.platform !== 'win32') return { ok: false, error: 'Windows Voice Typing is only available in the Windows build.' };
   try {
@@ -185,6 +187,7 @@ app.whenReady().then(() => {
   ipcMain.handle('secure-delete', (_event, data) => secureStore.deleteSecret(data?.name));
   ipcMain.handle('refine-prompt', (_event, data) => promptQuality.refine(data?.input, data?.context || {}));
   ipcMain.handle('native-speech-start', () => startNativeSpeech());
+  ipcMain.handle('transcribe-audio', (_event, payload) => transcribeAudio(payload));
   ipcMain.handle('native-speech-stop', () => stopNativeSpeech());
   ipcMain.handle('windows-voice-typing', () => startWindowsVoiceTyping());
   ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());

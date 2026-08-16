@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('yourListener', {
   secureDelete: (payload) => ipcRenderer.invoke('secure-delete', payload),
   refinePrompt: (payload) => ipcRenderer.invoke('refine-prompt', payload),
   nativeSpeechStart: () => ipcRenderer.invoke('native-speech-start'),
+  transcribeAudio: (payload) => ipcRenderer.invoke('transcribe-audio', payload),
   nativeSpeechStop: () => ipcRenderer.invoke('native-speech-stop'),
   windowsVoiceTyping: () => ipcRenderer.invoke('windows-voice-typing'),
   onNativeSpeechReady: (callback) => ipcRenderer.on('native-speech-ready', callback),

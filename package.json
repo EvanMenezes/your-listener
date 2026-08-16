@@ -1,6 +1,6 @@
 {
   "name": "your-listener-max",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "description": "Your Listener Max Mode: an original Windows voice workflow assistant.",
   "main": "main.js",
   "author": "Your Listener",
@@ -32,8 +32,15 @@
       "connector-registry.js",
       "workflow-builder.js",
       "secure-store.js",
-      "prompt-quality.js"
-    ],
+    "prompt-quality.js"
+  ],
+  "extraResources": [
+    {
+      "from": "vendor/whisper",
+      "to": "vendor/whisper",
+      "filter": ["**/*"]
+    }
+  ],
     "win": {
       "target": [
         "portable"
