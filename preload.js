@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('yourListener', {
   refinePrompt: (payload) => ipcRenderer.invoke('refine-prompt', payload),
   nativeSpeechStart: () => ipcRenderer.invoke('native-speech-start'),
   nativeSpeechStop: () => ipcRenderer.invoke('native-speech-stop'),
+  windowsVoiceTyping: () => ipcRenderer.invoke('windows-voice-typing'),
   onNativeSpeechReady: (callback) => ipcRenderer.on('native-speech-ready', callback),
   onNativeSpeechResult: (callback) => ipcRenderer.on('native-speech-result', (_event, text) => callback(text)),
   onNativeSpeechError: (callback) => ipcRenderer.on('native-speech-error', (_event, error) => callback(error)),

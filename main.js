@@ -44,6 +44,18 @@ function startNativeSpeech() {
   } catch (error) { runtimeLog('native-speech-start-error', error); return { ok: false, error: error.message }; }
 }
 function stopNativeSpeech() { try { nativeSpeechProcess?.kill(); } catch {} nativeSpeechProcess = null; return { ok: true }; }
+async function startWindowsVoiceTyping() {
+  if (process.platform !== 'win32') return { ok: false, error: 'Windows Voice Typing is only available in the Windows build.' };
+  try {
+    if (!automation) automation = require('@nut-tree-fork/nut-js');
+    const { keyboard, Key } = automation;
+    const winKey = Key.LeftWin || Key.Meta;
+    if (!winKey || !Key.H) throw new Error('Windows shortcut keys are unavailable in this build.');
+    await keyboard.pressKey(winKey, Key.H);
+    await keyboard.releaseKey(winKey, Key.H);
+    return { ok: true };
+  } catch (error) { runtimeLog('windows-voice-typing-error', error); return { ok: false, error: error.message }; }
+}
 function runtimeLog(label, error) { try { const target = path.join(app.getPath('userData'), 'your-listener-runtime.log'); fs.appendFileSync(target, `[${new Date().toISOString()}] ${label}: ${error?.stack || error?.message || String(error)}\n`); } catch {} }
 process.on('uncaughtException', (error) => runtimeLog('uncaughtException', error));
 process.on('unhandledRejection', (error) => runtimeLog('unhandledRejection', error));
@@ -169,6 +181,7 @@ app.whenReady().then(() => {
   ipcMain.handle('refine-prompt', (_event, data) => promptQuality.refine(data?.input, data?.context || {}));
   ipcMain.handle('native-speech-start', () => startNativeSpeech());
   ipcMain.handle('native-speech-stop', () => stopNativeSpeech());
+  ipcMain.handle('windows-voice-typing', () => startWindowsVoiceTyping());
   ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
   ipcMain.on('minimize-window', (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());
 });
