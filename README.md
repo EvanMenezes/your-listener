@@ -16,3 +16,7 @@ Sensitive actions such as calling, messaging, submitting, purchasing, creating, 
 ## Product boundary
 
 This is an original implementation targeting public user-facing voice-assistant outcomes. It does not copy private source code, private models, exact branding, or protected graphics from another product.
+
+## Prompt quality layer
+
+Rough requests are normalized into a structured task with context, quality requirements, clarification questions, warnings, and confirmation rules before unknown actions are executed. The layer does not invent missing recipients, dates, amounts, or permissions.

@@ -30,7 +30,8 @@
       "connector-hub.js",
       "connector-registry.js",
       "workflow-builder.js",
-      "secure-store.js"
+      "secure-store.js",
+      "prompt-quality.js"
     ],
     "win": {
       "target": [

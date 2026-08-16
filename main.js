@@ -5,6 +5,7 @@ const connectorHub = require('./connector-hub');
 const connectorRegistry = require('./connector-registry');
 const workflowBuilder = require('./workflow-builder');
 const secureStore = require('./secure-store');
+const promptQuality = require('./prompt-quality');
 
 let assistantWindow;
 let settingsWindow;
@@ -121,6 +122,7 @@ app.whenReady().then(() => {
   ipcMain.handle('secure-set', (_event, data) => secureStore.setSecret(data?.name, data?.value));
   ipcMain.handle('secure-get', (_event, data) => secureStore.getSecret(data?.name));
   ipcMain.handle('secure-delete', (_event, data) => secureStore.deleteSecret(data?.name));
+  ipcMain.handle('refine-prompt', (_event, data) => promptQuality.refine(data?.input, data?.context || {}));
   ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
   ipcMain.on('minimize-window', (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());
 });
