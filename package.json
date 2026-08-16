@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
+    "test": "node smoke-test.js",
     "package": "electron-builder --win portable"
   },
   "dependencies": {
