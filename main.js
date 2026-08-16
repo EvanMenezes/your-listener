@@ -24,24 +24,25 @@ const nativeSpeechScript = [
   "$recognizer = New-Object System.Speech.Recognition.SpeechRecognitionEngine",
   "$recognizer.SetInputToDefaultAudioDevice()",
   "$recognizer.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))",
-  "$recognizer.RecognizeCompleted.Add({ param($sender, $event); if ($event.Result -and $event.Result.Text) { Write-Output ('YL_RESULT:' + $event.Result.Text) } })",
+  "$recognizer.SpeechRecognized.Add({ param($sender, $event); if ($event.Result -and $event.Result.Text -and $event.Result.Confidence -ge 0.18) { Write-Output ('YL_RESULT:' + $event.Result.Text) } })",
   "Write-Output 'YL_READY'",
   "$recognizer.RecognizeAsync([System.Speech.Recognition.RecognizeMode]::Multiple)",
   "while ($true) { Start-Sleep -Seconds 1 }"
 ].join('; ');
 function startNativeSpeech() {
+  runtimeLog('native-speech-start-request', 'Starting Windows SpeechRecognitionEngine.');
   if (process.platform !== 'win32' || nativeSpeechProcess) return { ok: Boolean(nativeSpeechProcess), error: nativeSpeechProcess ? '' : 'Native Windows speech is only available in the Windows build.' };
   try {
     nativeSpeechProcess = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', nativeSpeechScript], { windowsHide: true });
     nativeSpeechProcess.stdout.setEncoding('utf8');
     nativeSpeechProcess.stdout.on('data', (chunk) => String(chunk).split(/\r?\n/).forEach((line) => {
-      if (line === 'YL_READY') send('native-speech-ready');
-      else if (line.startsWith('YL_RESULT:')) send('native-speech-result', line.slice(10).trim());
+      if (line === 'YL_READY') { runtimeLog('native-speech-ready', 'Windows speech engine is ready.'); send('native-speech-ready'); }
+      else if (line.startsWith('YL_RESULT:')) { const text=line.slice(10).trim(); runtimeLog('native-speech-result', text); send('native-speech-result', text); }
     }));
     nativeSpeechProcess.stderr.setEncoding('utf8');
-    nativeSpeechProcess.stderr.on('data', (chunk) => send('native-speech-error', String(chunk).trim()));
+    nativeSpeechProcess.stderr.on('data', (chunk) => { const message=String(chunk).trim(); runtimeLog('native-speech-stderr', message); send('native-speech-error', message); });
     nativeSpeechProcess.on('error', (error) => { runtimeLog('native-speech-error', error); send('native-speech-error', error.message); nativeSpeechProcess = null; });
-    nativeSpeechProcess.on('close', (code) => { if (code) send('native-speech-error', `Native speech stopped with code ${code}.`); nativeSpeechProcess = null; });
+    nativeSpeechProcess.on('close', (code) => { runtimeLog('native-speech-close', `code=${code}`); if (code) send('native-speech-error', `Native speech stopped with code ${code}.`); nativeSpeechProcess = null; });
     return { ok: true };
   } catch (error) { runtimeLog('native-speech-start-error', error); return { ok: false, error: error.message }; }
 }
