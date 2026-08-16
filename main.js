@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, screen, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, screen, clipboard, session } = require('electron');
 const path = require('path');
 const { enhanceText } = require('./provider');
 const connectorHub = require('./connector-hub');
@@ -99,6 +99,14 @@ function createSettings() {
 }
 
 app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const ownWindow = webContents.getURL().startsWith('file://');
+    callback(ownWindow && permission === 'media');
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    const ownWindow = webContents.getURL().startsWith('file://');
+    return ownWindow && permission === 'media';
+  });
   createAssistant();
   ipcMain.handle('open-settings', createSettings);
   ipcMain.handle('open-url', async (_event, raw) => {
